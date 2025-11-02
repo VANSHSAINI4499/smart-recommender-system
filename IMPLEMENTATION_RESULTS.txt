@@ -1,0 +1,8 @@
+Implementation & Results
+• Implemented a unified Streamlit recommender for books, courses, and movies. Data loaders use multi‑encoding CSV reads, text cleaning, feature normalization, caching, and image fallbacks. Matching blends fuzzy title/keyword similarity with lightweight popularity signals. UI offers tabs, sliders for N, uploads/preview, and CSV/XLSX export.
+
+Key results
+• Without labeled relevance, we report proxy quality: strong typo robustness, consistent top‑N topical coherence, and stable latency on local runs; cold‑start handled via popularity defaults.
+
+Visuals
+• App includes: (1) top‑N bar charts, (2) similarity heatmaps, (3) rating/length histograms, (4) item cards with cover/poster thumbnails. Use the sidebar to reproduce these visuals per dataset.   

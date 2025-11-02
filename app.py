@@ -55,7 +55,7 @@ import streamlit as st
 import pandas as pd
 import time
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageOps, ImageDraw, ImageFont
 import requests
 from rapidfuzz import fuzz, process
 import base64
@@ -239,6 +239,83 @@ def inject_custom_css():
 # DATA LOADING & CACHING
 # ============================================================================
 
+# Fixed image sizes (maintain consistent 2:3 ratio for alignment)
+BOOK_IMAGE_SIZE = (300, 450)
+MOVIE_IMAGE_SIZE = (300, 450)
+
+def _convert_enrollment_to_numeric(value):
+    """Convert enrollment strings like '5.3k', '17k', '130k' to numeric values.
+    
+    Args:
+        value: String or numeric value
+    
+    Returns:
+        Numeric value (e.g., '5.3k' -> 5300, '17k' -> 17000)
+    """
+    if pd.isna(value):
+        return 0
+    
+    if isinstance(value, (int, float)):
+        return int(value)
+    
+    # Convert string like '5.3k' or '17k' to numeric
+    value_str = str(value).strip().lower()
+    
+    if 'k' in value_str:
+        try:
+            num = float(value_str.replace('k', ''))
+            return int(num * 1000)
+        except ValueError:
+            return 0
+    elif 'm' in value_str:
+        try:
+            num = float(value_str.replace('m', ''))
+            return int(num * 1000000)
+        except ValueError:
+            return 0
+    else:
+        try:
+            return int(float(value_str))
+        except ValueError:
+            return 0
+
+def _make_placeholder_image(size, text="No Image"):
+    """Create a solid placeholder image of the given size with centered text.
+
+    Ensures a consistent aspect ratio across items to preserve grid alignment.
+    """
+    width, height = size
+    bg_color = (42, 42, 42)
+    fg_color = (0, 212, 255)  # neon blue accent
+    img = Image.new("RGB", size, bg_color)
+    draw = ImageDraw.Draw(img)
+    # Choose a simple font; fall back to default if truetype not available
+    try:
+        font = ImageFont.truetype("arial.ttf", size=int(height * 0.08))
+    except Exception:
+        font = ImageFont.load_default()
+    text = text[:20]
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    draw.text(((width - tw) / 2, (height - th) / 2), text, fill=fg_color, font=font)
+    return img
+
+def _load_image_with_fallback(url: str, size, placeholder_text: str):
+    """Try to fetch and resize image; return a consistent-ratio placeholder on failure.
+
+    Uses ImageOps.fit to preserve aspect ratio and crop/letterbox to target size.
+    """
+    try:
+        if url and isinstance(url, str) and url.startswith("http"):
+            resp = requests.get(url, timeout=4)
+            resp.raise_for_status()
+            img = Image.open(BytesIO(resp.content)).convert("RGB")
+            # Fit to target while preserving ratio (center crop if needed)
+            return ImageOps.fit(img, size, Image.LANCZOS)
+    except Exception:
+        pass
+    return _make_placeholder_image(size, placeholder_text)
+
 @st.cache_data
 def load_books_dataset(file_path=None, uploaded_file=None):
     """Load and validate books dataset from CSV file."""
@@ -313,7 +390,8 @@ def load_courses_dataset(file_path=None, uploaded_file=None):
         df['course_organization'] = df['course_organization'].fillna('Unknown')
         df['course_rating'] = pd.to_numeric(df['course_rating'], errors='coerce').fillna(0)
         df['course_difficulty'] = df['course_difficulty'].fillna('Unknown')
-        df['course_students_enrolled'] = pd.to_numeric(df['course_students_enrolled'], errors='coerce').fillna(0)
+        # Convert enrollment strings like '5.3k', '17k' to proper numbers
+        df['course_students_enrolled'] = df['course_students_enrolled'].apply(_convert_enrollment_to_numeric)
         df['course_Certificate_type'] = df['course_Certificate_type'].fillna('N/A')
         
         # Create lowercase search columns
@@ -400,7 +478,9 @@ def recommend_books(df, book_name='', genre='', publisher='', top_n=5):
     if not book_name and not genre and not publisher:
         return filtered_df.nlargest(top_n, 'average_rating')
     
-    # Apply filters
+    # Apply filters independently (AND logic: all specified filters must match)
+    
+    # Filter by book title if provided
     if book_name:
         book_name_lower = book_name.lower()
         
@@ -423,7 +503,7 @@ def recommend_books(df, book_name='', genre='', publisher='', top_n=5):
         else:
             filtered_df = substring_matches
     
-    # Filter by genre (match against title as fallback since genre column might not exist)
+    # Filter by genre if provided (search in title as proxy for genre keywords)
     if genre:
         genre_lower = genre.lower()
         filtered_df = filtered_df[
@@ -431,7 +511,7 @@ def recommend_books(df, book_name='', genre='', publisher='', top_n=5):
             filtered_df['original_title_lower'].str.contains(genre_lower, na=False, regex=False)
         ]
     
-    # Filter by publisher/author
+    # Filter by publisher/author if provided
     if publisher:
         publisher_lower = publisher.lower()
         filtered_df = filtered_df[
@@ -450,14 +530,9 @@ def display_book_card(book, col):
     with col:
         st.markdown('<div class="recommendation-card">', unsafe_allow_html=True)
         
-        # Display book cover
-        if book['image_url'] and book['image_url'].startswith('http'):
-            try:
-                st.image(book['image_url'], use_container_width=True, caption=book['title'])
-            except:
-                st.image('https://via.placeholder.com/150x220?text=No+Image', use_container_width=True)
-        else:
-            st.image('https://via.placeholder.com/150x220?text=No+Image', use_container_width=True)
+        # Display book cover with robust same-ratio placeholder fallback (2:3)
+        img = _load_image_with_fallback(book.get('image_url', ''), BOOK_IMAGE_SIZE, "No Cover")
+        st.image(img, width='stretch', caption=book['title'])
         
         # Book details
         st.markdown(f"### 📚 {book['title']}")
@@ -654,14 +729,9 @@ def display_movie_card(movie, col):
     with col:
         st.markdown('<div class="recommendation-card">', unsafe_allow_html=True)
         
-        # Display movie poster
-        if movie['Poster'] and movie['Poster'].startswith('http'):
-            try:
-                st.image(movie['Poster'], use_container_width=True, caption=movie['Title'])
-            except:
-                st.image('https://via.placeholder.com/200x300?text=No+Poster', use_container_width=True)
-        else:
-            st.image('https://via.placeholder.com/200x300?text=No+Poster', use_container_width=True)
+        # Display movie poster with robust same-ratio placeholder fallback (2:3)
+        img = _load_image_with_fallback(movie.get('Poster', ''), MOVIE_IMAGE_SIZE, "No Poster")
+        st.image(img, width='stretch', caption=movie['Title'])
         
         # Movie details
         st.markdown(f"### 🎬 {movie['Title']}")
@@ -792,12 +862,12 @@ def main():
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("▶️ Start", use_container_width=True):
+            if st.button("▶️ Start", width='stretch'):
                 st.session_state.running = True
                 st.rerun()
         
         with col2:
-            if st.button("⏸️ Stop", use_container_width=True):
+            if st.button("⏸️ Stop", width='stretch'):
                 st.session_state.running = False
                 st.rerun()
         
@@ -840,13 +910,13 @@ def main():
         with st.expander("👀 Preview Loaded Datasets (First 3 Rows)"):
             if books_df is not None:
                 st.markdown("**Books Dataset:**")
-                st.dataframe(books_df.head(3), use_container_width=True)
+                st.dataframe(books_df.head(3), width='stretch')
             if courses_df is not None:
                 st.markdown("**Courses Dataset:**")
-                st.dataframe(courses_df.head(3), use_container_width=True)
+                st.dataframe(courses_df.head(3), width='stretch')
             if movies_df is not None:
                 st.markdown("**Movies Dataset:**")
-                st.dataframe(movies_df.head(3), use_container_width=True)
+                st.dataframe(movies_df.head(3), width='stretch')
     
     # Tabs for different recommenders
     tab1, tab2, tab3 = st.tabs([
@@ -887,7 +957,7 @@ def main():
                     key='publisher_input'
                 )
             
-            if st.button("🔍 Find Books", key='find_books_btn', use_container_width=True):
+            if st.button("🔍 Find Books", key='find_books_btn', width='stretch'):
                 with st.spinner("Searching for perfect book matches..."):
                     recommendations = recommend_books(
                         books_df,
@@ -952,7 +1022,7 @@ def main():
                     key='difficulty_select'
                 )
             
-            if st.button("🔍 Find Courses", key='find_courses_btn', use_container_width=True):
+            if st.button("🔍 Find Courses", key='find_courses_btn', width='stretch'):
                 with st.spinner("Searching for perfect course matches..."):
                     recommendations = recommend_courses(
                         courses_df,
@@ -1015,7 +1085,7 @@ def main():
                     key='genre_movie_input'
                 )
             
-            if st.button("🔍 Find Movies", key='find_movies_btn', use_container_width=True):
+            if st.button("🔍 Find Movies", key='find_movies_btn', width='stretch'):
                 with st.spinner("Searching for perfect movie matches..."):
                     recommendations = recommend_movies(
                         movies_df,

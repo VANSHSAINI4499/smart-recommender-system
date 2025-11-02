@@ -1,0 +1,17 @@
+Future Work, Limitations & Acknowledgment
+
+Future improvements
+• Collect labeled feedback to compute precision/recall/NDCG and train a hybrid model.
+• Add semantic embeddings (SBERT) with vector search for deeper matches.
+• Personalization from implicit feedback with session‑based re‑ranking.
+• Incremental caching and async image fetch for scale.
+
+Limitations
+• No ground‑truth labels; outcomes depend on metadata quality.
+• Cold‑start uses popularity defaults; privacy limits tracking.
+
+Acknowledgment
+Thanks to mentors, peers, and the open‑source stack—Streamlit, pandas, RapidFuzz, NumPy, Pillow, and XlsxWriter—for enabling this build.
+
+Thank You & Q/A
+Happy to discuss features (fuzzy matching, sliders, caching, visuals, uploads/exports) and next steps. Q/A welcome.

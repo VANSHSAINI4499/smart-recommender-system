@@ -1,0 +1,5 @@
+Methodology / System Design
+Architecture: Streamlit UI → Input handlers → Cached Data Layer (pandas) → Recommender engines (Books/Courses/Movies) → Card renderer/export. Auto-refresh loop via session_state + sleep.
+Datasets: Local CSVs (books.csv, courses.csv, movies.csv). Typical sizes: 1K–100K rows. Key fields: titles, authors/organizations, ratings, genres, poster/image URLs, difficulty/enrollment, IMDB score/links.
+Algorithms/Tools: Substring filtering + fuzzy matching (RapidFuzz). Ranking by rating/score and enrollment; tie-breakers by similarity. Tech: Python, Streamlit, Pandas, NumPy, PIL, XlsxWriter.
+Preprocessing: UTF-8/Latin-1 tolerant reads; fill missing values; numeric coercion; lowercase helper columns; strip whitespace; basic validation of required columns; safe image placeholders. Outputs: responsive neon-dark UI with CSV export.

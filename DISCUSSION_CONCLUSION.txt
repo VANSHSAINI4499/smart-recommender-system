@@ -1,0 +1,12 @@
+Discussion & Conclusion
+Interpretation of results
+Our blended fuzzy + popularity approach delivered coherent top‑N suggestions, resilient to typos and sparse metadata. Visual diagnostics (bar charts, heatmaps, histograms) confirmed topical alignment and stable latency on local runs.
+
+Challenges and solutions
+- Mixed CSV encodings → multi‑encoding readers with fallbacks.
+- Inconsistent fields/images → text normalization and placeholder thumbnails.
+- Cold‑start queries → popularity‑based defaults and adjustable N sliders.
+- Performance → caching of datasets and preprocessed features.
+
+Outcomes and conclusion
+The unified Streamlit app for books, courses, and movies provides reliable, explainable recommendations with upload/preview, exports, and auto‑refresh. The feature set—fuzzy matching, sliders, caching, and visuals—improves usability and transparency; adding labeled data would enable precision/recall benchmarking.

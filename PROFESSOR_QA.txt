@@ -1,0 +1,37 @@
+Professor Q&A (Short)
+
+Q: Which datasets are used?
+A: books.csv, courses.csv, movies.csv.
+
+Q: What features are used for Books?
+A: title, authors, genres/tags, description, rating, year, language, image_url.
+
+Q: What features are used for Courses?
+A: title, platform, topic, level, description, rating, duration, language, url.
+
+Q: What features are used for Movies?
+A: title, genres, overview, cast/crew (text if present), year, rating, runtime, poster_url.
+
+Q: How are recommendations computed?
+A: Fuzzy string similarity + substring match + popularity boost; return top‑N.
+
+Q: How do you handle typos/noise?
+A: Multi‑encoding CSV reads, text normalization; fuzzy matching tolerates typos.
+
+Q: How is cold‑start handled?
+A: Popularity‑based defaults and nearest keyword matches.
+
+Q: What about performance?
+A: Streamlit caching, preprocessed fields, and batched image loading.
+
+Q: Do you support uploads/exports?
+A: Yes—CSV upload with preview; export results to CSV/XLSX.
+
+Q: What visuals are included?
+A: Top‑N bar charts, similarity heatmaps, histograms, and item cards with images.
+
+Q: How is quality validated without labels?
+A: Proxy checks: topical coherence, typo robustness, and user spot checks.
+
+Q: Key limitations and future work?
+A: Add labeled feedback, semantic embeddings + vector search, personalization, and formal metrics.
